@@ -125,6 +125,180 @@ sub = string.sub
 pack = table.pack
 unpack = table.unpack
 
+function tostr(v, hex)
+    if v == nil then return "[nil]" end
+    if type(v) == "boolean" then return v and "true" or "false" end
+    if type(v) == "string" then return v end
+    if type(v) == "number" then
+        if hex then
+            local is_hex = (hex == true or hex == 1 or hex == 0x1)
+            local is_raw = (hex == 2 or hex == 0x2)
+            local is_short = (hex == 3 or hex == 0x3)
+            local int_part = (v \ 1) & 0xffff
+            local frac_part = ((v - (v \ 1)) * 65536 \ 1) & 0xffff
+            if is_raw then
+                return string.format("0x%04x", int_part)
+            elseif is_short then
+                return string.format("%04x", int_part)
+            else
+                return string.format("0x%04x.%04x", int_part, frac_part)
+            end
+        end
+        return tostring(v)
+    end
+    return tostring(v)
+end
+
+function tonum(v, flags)
+    if type(v) == "number" then return v end
+    if type(v) ~= "string" then return nil end
+    local n = tonumber(v)
+    if n ~= nil then return n end
+    local s = string.match(v, "^%s*(.-)%s*$")
+    if s and (#s >= 2) then
+        local prefix = string.sub(s, 1, 2)
+        if prefix == "0x" or prefix == "0X" then
+            return tonumber(s, 16)
+        elseif prefix == "0b" or prefix == "0B" then
+            return tonumber(string.sub(s, 3), 2)
+        end
+    end
+    return nil
+end
+
+function chr(...)
+    local args = {...}
+    local res = ""
+    for i = 1, #args do
+        local val = args[i]
+        if val ~= nil then
+            res = res .. string.char((val \ 1) % 256)
+        end
+    end
+    return res
+end
+
+function ord(s, i)
+    if s == nil or type(s) ~= "string" or #s == 0 then return nil end
+    i = i or 1
+    return string.byte(s, i)
+end
+
+function split(s, sep, convert_numbers)
+    if s == nil then return {} end
+    sep = sep or ","
+    convert_numbers = (convert_numbers == nil or convert_numbers == true)
+    local res = {}
+    if sep == "" then
+        for i = 1, #s do
+            local ch = string.sub(s, i, i)
+            res[#res + 1] = convert_numbers and (tonum(ch) or ch) or ch
+        end
+        return res
+    end
+    local pattern = "([^" .. sep .. "]+)"
+    for part in string.gmatch(s, pattern) do
+        res[#res + 1] = convert_numbers and (tonum(part) or part) or part
+    end
+    return res
+end
+
+function flr(x)
+    if x == nil then return 0 end
+    return x \ 1
+end
+
+function ceil(x)
+    if x == nil then return 0 end
+    return -((-x) \ 1)
+end
+
+function min(a, b)
+    if a == nil then return b or 0 end
+    if b == nil then return a end
+    return a < b and a or b
+end
+
+function max(a, b)
+    if a == nil then return b or 0 end
+    if b == nil then return a end
+    return a > b and a or b
+end
+
+function mid(x, y, z)
+    x = x or 0
+    y = y or 0
+    z = z or 0
+    if x > y then x, y = y, x end
+    if y > z then y, z = z, y end
+    if x > y then x, y = y, x end
+    return y
+end
+
+function abs(x)
+    if x == nil then return 0 end
+    return x < 0 and -x or x
+end
+
+function sgn(x)
+    if x == nil or x >= 0 then return 1 else return -1 end
+end
+
+function sqrt(x)
+    if x == nil or x < 0 then return 0 end
+    return x ^ 0.5
+end
+
+local __p8_pi2 = 6.28318530717958647692
+
+function cos(a)
+    if a == nil then return 1 end
+    a = a - (a \ 1)
+    if a < 0 then a = a + 1 end
+    local x = (a - 0.5) * __p8_pi2
+    local x2 = x * x
+    return -(1 - x2 * (0.5 - x2 * (0.041666666666666664 - x2 * (0.001388888888888889 - x2 * 0.000024801587301587))))
+end
+
+function sin(a)
+    if a == nil then return 0 end
+    return -cos(a - 0.25)
+end
+
+function atan2(dx, dy)
+    dx = dx or 0
+    dy = dy or 0
+    if dx == 0 and dy == 0 then return 0.75 end
+    local ax = abs(dx)
+    local ay = abs(dy)
+    local a
+    if ax > ay then
+        local r = ay / ax
+        a = r * (0.15915494309189535 - r * r * 0.05305164769729845)
+    else
+        local r = ax / ay
+        a = 0.25 - r * (0.15915494309189535 - r * r * 0.05305164769729845)
+    end
+    if dx < 0 and dy <= 0 then
+        a = 0.5 - a
+    elseif dx <= 0 and dy > 0 then
+        a = 0.5 + a
+    elseif dx > 0 and dy > 0 then
+        a = 1.0 - a
+    end
+    return a % 1.0
+end
+
+function band(x, y) return x & y end
+function bor(x, y) return x | y end
+function bxor(x, y) return x ^^ y end
+function bnot(x) return ~x end
+function shl(x, y) return x << y end
+function shr(x, y) return x >> y end
+function lshr(x, y) return x >>> y end
+function rotl(x, y) return x <<> y end
+function rotr(x, y) return x >>< y end
+
 function stop()
     __z8_stopped = true
     --error()
@@ -334,47 +508,49 @@ rrect, rrectfill
 --https://github.com/voliva/ps4-p8/blob/ecba7f93ef9ba73ccb121b45ede6f46e651cef65/pico8_ps4/lua_lang_fns.cpp
 --MIT license
 
-eris.perm = {}
-eris.unperm = {}
-eris.original_G = {}
+if eris ~= nil then
+  eris.perm = {}
+  eris.unperm = {}
+  eris.original_G = {}
 
-eris.init_persist_all = function()
-  -- lua pairs is not sorted. The order is actually random, changes on every execution (wtf?)
-  
-  eris.settings("path", true)
-  
-  local keyset={}
-  local n=0
-  for k,v in pairs(_G) do
-    n=n+1
-    keyset[n]=k
-  end
-  table.sort(keyset)
-  local i=0
-  for i=1,n do
-    local k=keyset[i]
-    local v=_G[k]
-    eris.perm[v] = i
-    eris.unperm[i] = v
-    eris.original_G[k] = v
-  end
-end
-
-eris.persist_all = function()
-  local new_symbols = {}
-  for k,v in pairs(_G) do
-    if eris.original_G[k] != v then
-       new_symbols[k] = v
+  eris.init_persist_all = function()
+    -- lua pairs is not sorted. The order is actually random, changes on every execution (wtf?)
+    
+    eris.settings("path", true)
+    
+    local keyset={}
+    local n=0
+    for k,v in pairs(_G) do
+      n=n+1
+      keyset[n]=k
+    end
+    table.sort(keyset)
+    local i=0
+    for i=1,n do
+      local k=keyset[i]
+      local v=_G[k]
+      eris.perm[v] = i
+      eris.unperm[i] = v
+      eris.original_G[k] = v
     end
   end
 
-  return eris.persist(eris.perm, new_symbols)
-end
+  eris.persist_all = function()
+    local new_symbols = {}
+    for k,v in pairs(_G) do
+      if eris.original_G[k] != v then
+         new_symbols[k] = v
+      end
+    end
 
-eris.restore_all = function(persisted)
-  local new_symbols = eris.unpersist(eris.unperm, persisted)
-  for k,v in pairs(new_symbols) do
-    _G[k] = v
+    return eris.persist(eris.perm, new_symbols)
+  end
+
+  eris.restore_all = function(persisted)
+    local new_symbols = eris.unpersist(eris.unperm, persisted)
+    for k,v in pairs(new_symbols) do
+      _G[k] = v
+    end
   end
 end
 

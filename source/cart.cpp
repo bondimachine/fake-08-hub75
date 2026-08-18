@@ -456,6 +456,10 @@ Cart::Cart(std::string filename, std::string cartDirectory){
         // Built-in carts don't need a directory path
         FullCartPath = filename;
     }
+    else if (get_first_four_chars(filename).length() > 0) {
+        // Filename exists directly in current working directory or relative path
+        FullCartPath = filename;
+    }
     else if (cartDirectory.length() > 0 && ! isAbsolutePath(filename)) {
         FullCartPath = cartDirectory + "/" + filename;
     }
@@ -474,7 +478,9 @@ Cart::Cart(std::string filename, std::string cartDirectory){
         //fallback for cart loading by key - support .p8 and .p8.png
         filename = filename + ".png";
         // Rebuild full path with cart directory (same logic as initial path build)
-        if (cartDirectory.length() > 0 && !isAbsolutePath(filename)) {
+        if (get_first_four_chars(filename).length() > 0) {
+            FullCartPath = filename;
+        } else if (cartDirectory.length() > 0 && !isAbsolutePath(filename)) {
             FullCartPath = cartDirectory + "/" + filename;
         } else {
             FullCartPath = filename;
